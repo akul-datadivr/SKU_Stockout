@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>SKU Stockout Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; background: #fff; }
+    header { text-align: center; padding: 30px 15px 15px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); position: fixed; top: 0; width: 100%; z-index: 10; }
+    header img { height: 50px; }
+    h2 { margin-top: 8px; font-size: 18px; }
+    .container { padding: 160px 15px 20px; }
+    .filters { display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px; }
+    .filters label { display: flex; flex-direction: column; font-size: 14px; }
+    .filters select { padding: 6px; font-size: 14px; }
+    .report-table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 600px; }
+    .report-table th { background: #2c3e50; color: white; padding: 10px; }
+    .report-table td { padding: 10px; border: 1px solid #ccc; }
+    .hidden { display: none; }
+    .card { background: white; margin-bottom: 15px; padding: 15px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+    .card div { margin-bottom: 6px; font-size: 14px; }
+    @media (min-width: 768px) {
+      .filters { flex-direction: row; flex-wrap: wrap; justify-content: center; gap: 20px; }
+      .container { padding: 180px 30px 20px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="KT-Logo.png" alt="Kitchen Treasures Logo" />
+    <h2 id="report-title">SKU Stockout Report</h2>
+  </header>
+
+  <div class="container" id="main-view">
+    <div class="filters" id="filter-section">
+      <label>Territory:
+        <select id="territory"><option value="">All Territories</option></select>
+      </label>
+      <label>Beats:
+        <select id="beats"><option value="">All Beats</option></select>
+      </label>
+      <label>Outlet ERP ID:
+        <select id="outlet"><option value="">All Outlets</option></select>
+      </label>
+      <label>Hierarchy:
+        <select id="hierarchy">
+          <option value="">Select Level</option>
+          <option value="TSM">TSM</option>
+          <option value="SO">SO</option>
+        </select>
+      </label>
+      <label id="so-label">SO/TSM:
+        <select id="so"><option value="">All SO/TSM</option></select>
+      </label>
+      <label>Entity Name:
+        <select id="entity"><option value="">All Entities</option></select>
+      </label>
+    </div>
+
+    <div id="card-view" class="hidden"></div>
+
+    <div class="table-wrapper">
+      <table class="report-table hidden" id="data-table">
+        <thead>
+          <tr>
+            <th class="col-tsm">TSM</th>
+            <th class="col-so">SO</th>
+            <th>Territory</th>
+            <th>Beat</th>
+            <th>Outlet ERP ID</th>
+            <th>Outlet Name</th>
+            <th>Entity Name</th>
+            <th>Out of Stock</th>
+            <th class="col-available_only_in_images">Available only in Images</th>
+          </tr>
+        </thead>
+        <tbody id="report-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="stock-info-view" style="display: none;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="text-align: center;">
+        <img src="KT-Logo.png" alt="Kitchen Treasures Logo" style="height: 60px;" />
+        <h2 id="stock-title">SKU Stock Info</h2>
+      </div>
+
+      <button onclick="goBack()" style="
+        margin: 20px 0;
+        padding: 10px 20px;
+        background-color: #2c3e50;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        font-size: 14px;
+      ">← Back</button>
+
+      <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+        <thead>
+          <tr style="background: #2c3e50; color: white;">
+            <th style="padding: 10px; border: 1px solid #ccc;">Entity Name</th>
+            <th style="padding: 10px; border: 1px solid #ccc;">Out of Stock</th>
+          </tr>
+        </thead>
+        <tbody id="stock-details"></tbody>
+      </table>
+    </div>
+  </div>
+
+  
+    <script>
+    window.stockoutData = [
+  {
+    "Outlet_ERP_ID": "FO_INGR_80058288",
+    "TSM": "Renjith Kumar",
+    "SO": "Remya",
+    "Territory": "TRIVANDRUM",
+    "Beats": "OACHIRA TRADERS",
+    "Outlets_Name": "Oachira Trader",
+    "Entity_Name": "MASALA",
+    "Out_of_Stock": "Chicken Fry Masala",
+    "Available_only_in_images": "Biryani Masala",
+    "Available_in_both_images_and_stock": "Chicken Masala, Fish Masala, Garam Masala, Meat Masala, Pickle Powder, Rasam Powder, Sambar Powder",
+    "Not_in_both": "Chicken Kebab, Chilli Chicken Masala, Chutney Powder, Egg Masala, Fish Fry Masala, Kadala Curry Masala, Meat Ularthu, Mutton Masala, Spicy Chicken Masala, Vegetable Masala"
+  },
+  {
+    "Outlet_ERP_ID": "FO_INGR_80058288",
+    "TSM": "Renjith Kumar",
+    "SO": "Remya",
+    "Territory": "TRIVANDRUM",
+    "Beats": "OACHIRA TRADERS",
+    "Outlets_Name": "Oachira Trader",
+    "Entity_Name": "SPICE POWDERS",
+    "Out_of_Stock": "Black Pepper Powder, Chilli Powder 500 g, Coriander Powder 500 g, Kashmiri Chilli Powder 500 g",
+    "Available_only_in_images": "Chilli Powder 1 kg, Coriander Powder 1 kg, Crushed Chilli 100 g, Kashmiri Chilli Powder 1 kg, Turmeric Powder 1 kg",
+    "Available_in_both_images_and_stock": "Chilli Powder 100 g, Chilli Powder 250 g, Coriander Powder 100 g, Coriander Powder 250 g, Kashmiri Chilli Powder 100 g, Kashmiri Chilli Powder 250 g, Turmeric Powder 100 g, Turmeric Powder 250 g",
+    "Not_in_both": "Crushed Chilli 50 g, Cumin Powder, Dry Ginger Powder, Fennel Powder, Fenugreek Powder, Turmeric Powder 500 g"
+  },
+  {
+    "Outlet_ERP_ID": "FO_INGR_80058288",
+    "TSM": "Renjith Kumar",
+    "SO": "Remya",
+    "Territory": "TRIVANDRUM",
+    "Beats": "OACHIRA TRADERS",
+    "Outlets_Name": "Oachira Trader",
+    "Entity_Name": "BREAK FAST SERIES",
+    "Out_of_Stock": NaN,
+    "Available_only_in_images": NaN,
+    "Available_in_both_images_and_stock": NaN,
+    "Not_in_both": NaN
+  },
+  {
+    "Outlet_ERP_ID": "26144_16_tvmn0062",
+    "TSM": "Renjith Kumar",
+    "SO": "Remya",
+    "Territory": "TRIVANDRUM",
+    "Beats": "OACHIRA TRADERS",
+    "Outlets_Name": "Ochira Traders",
+    "Entity_Name": "MASALA",
+    "Out_of_Stock": NaN,
+    "Available_only_in_images": "Biryani Masala, Chilli Chicken Masala, Spicy Chicken Masala",
+    "Available_in_both_images_and_stock": "Chicken Masala, Fish Masala, Garam Masala, Meat Masala, Pickle Powder, Rasam Powder, Sambar Powder",
+    "Not_in_both": "Chicken Fry Masala, Chicken Kebab, Chutney Powder, Egg Masala, Fish Fry Masala, Kadala Curry Masala, Meat Ularthu, Mutton Masala, Vegetable Masala"
+  },
+  {
+    "Outlet_ERP_ID": "26144_16_tvmn0062",
+    "TSM": "Renjith Kumar",
+    "SO": "Remya",
+    "Territory": "TRIVANDRUM",
+    "Beats": "OACHIRA TRADERS",
+    "Outlets_Name": "Ochira Traders",
+    "Entity_Name": "SPICE POWDERS",
+    "Out_of_Stock": "Chilli Powder 500 g, Coriander Powder 500 g, Kashmiri Chilli Powder 500 g, Turmeric Powder 500 g",
+    "Available_only_in_images": "Chilli Powder 1 kg, Cumin Powder",
+    "Available_in_both_images_and_stock": "Black Pepper Powder, Chilli Powder 100 g, Chilli Powder 250 g, Coriander Powder 100 g, Coriander Powder 250 g, Kashmiri Chilli Powder 100 g, Kashmiri Chilli Powder 250 g, Turmeric Powder 100 g, Turmeric Powder 250 g",
+    "Not_in_both": "Coriander Powder 1 kg, Crushed Chilli 100 g, Crushed Chilli 50 g, Dry Ginger Powder, Fennel Powder, Fenugreek Powder, Kashmiri Chilli Powder 1 kg, Turmeric Powder 1 kg"
+  },
+  {
+    "Outlet_ERP_ID": "26144_16_tvmn0062",
+    "TSM": "Renjith Kumar",
+    "SO": "Remya",
+    "Territory": "TRIVANDRUM",
+    "Beats": "OACHIRA TRADERS",
+    "Outlets_Name": "Ochira Traders",
+    "Entity_Name": "BREAK FAST SERIES",
+    "Out_of_Stock": NaN,
+    "Available_only_in_images": NaN,
+    "Available_in_both_images_and_stock": NaN,
+    "Not_in_both": NaN
+  },
+  {
+    "Outlet_ERP_ID": "ALP001",
+    "TSM": "Renjith Kumar",
+    "SO": "Sumangala",
+    "Territory": "ALLEPPEY",
+    "Beats": "KAE-ALPY-AM ASSOCIATS",
+    "Outlets_Name": "Mayura Super Market",
+    "Entity_Name": "MASALA",
+    "Out_of_Stock": "Chicken Kebab, Chutney Powder",
+    "Available_only_in_images": NaN,
+    "Available_in_both_images_and_stock": "Biryani Masala, Chicken Fry Masala, Chicken Masala, Chilli Chicken Masala, Egg Masala, Fish Fry Masala, Fish Masala, Garam Masala, Kadala Curry Masala, Meat Masala, Meat Ularthu, Mutton Masala, Pickle Powder, Rasam Powder, Sambar Powder, Spicy Chicken Masala, Vegetable Masala",
+    "Not_in_both": NaN
+  },
+  {
+    "Outlet_ERP_ID": "ALP001",
+    "TSM": "Renjith Kumar",
+    "SO": "Sumangala",
+    "Territory": "ALLEPPEY",
+    "Beats": "KAE-ALPY-AM ASSOCIATS",
+    "Outlets_Name": "Mayura Super Market",
+    "Entity_Name": "SPICE POWDERS",
+    "Out_of_Stock": NaN,
+    "Available_only_in_images": NaN,
+    "Available_in_both_images_and_stock": NaN,
+    "Not_in_both": NaN
+  },
+  {
+    "Outlet_ERP_ID": "ALP001",
+    "TSM": "Renjith Kumar",
+    "SO": "Sumangala",
+    "Territory": "ALLEPPEY",
+    "Beats": "KAE-ALPY-AM ASSOCIATS",
+    "Outlets_Name": "Mayura Super Market",
+    "Entity_Name": "BREAK FAST SERIES",
+    "Out_of_Stock": NaN,
+    "Available_only_in_images": NaN,
+    "Available_in_both_images_and_stock": NaN,
+    "Not_in_both": NaN
+  }
+];
+    </script>
+    
+</body>
+</html>
